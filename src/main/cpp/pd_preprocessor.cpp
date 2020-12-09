@@ -41,6 +41,107 @@ using namespace std;
 using namespace robotkernel;
 using namespace module_pd_preprocessor;
 using namespace string_util;
+        
+preproc_entry::preproc_entry(const YAML::Node& node) {
+    field_name = get_as<string>(node, "field_name");
+    cast_to    = get_as<string>(node, "cast_to", "");
+    convert_to = get_as<string>(node, "convert_to", "");
+    scaling    = get_as<double>(node, "scaling", 1.);
+    hide       = get_as<bool>  (node, "hide", false);
+}
+
+// construction
+preproc_device::preproc_device(const std::string& name, 
+        std::shared_ptr<pd_preprocessor> parent, const YAML::Node& node) :
+    pd_provider(name), pd_consumer(name), name(name)
+{
+    type = get_as<string>(node, "type");
+    pd_name = get_as<string>(node, "pd_name");
+
+    for (const auto& entries_node : node["entries"]) {
+        preproc_entry entry(entries_node);
+        entries[entry.field_name] = entry;
+    }
+}
+
+// destruction
+preproc_device::~preproc_device() {
+}
+
+void preproc_device::open() {
+    kernel& k = *kernel::get_instance();
+
+    import_pd.pd = k.get_process_data(pd_name);
+    if (import_pd.pd->clk_device != "") {
+        import_pd.trigger = k.get_trigger(import_pd.pd->clk_device);
+    }
+
+    // create new process data description
+    YAML::Node pd_desc = YAML::Load(import_pd.pd->process_data_definition);
+
+    YAML::Emitter emitter;
+    emitter << YAML::BeginSeq;
+    
+    export_pd.length = 0;
+
+    for (const auto& pd_desc_entry : pd_desc) {
+        emitter << YAML::BeginMap;
+        
+        for (const auto& kv : pd_desc_entry) {
+            string key = kv.first.as<string>();
+            string value = kv.second.as<string>();
+            bool hide = false;
+
+            if (entries.find(key) != entries.end()) {
+                auto& e = entries[key];
+                hide = e.hide;
+
+                if (e.convert_to != "") {
+                    key = e.convert_to;
+                } else if (e.cast_to != "") {
+                    key = e.cast_to;
+                }
+            }
+                
+            if (!hide) {
+                emitter << YAML::Key << key << YAML::Value << value;
+
+                ssize_t dt_len = process_data::get_data_type_length(key);
+                if (dt_len == -1) {
+                    parent->log(error, "unknown data_type %s\n", key.c_str());
+                }
+
+                export_pd.length += dt_len;
+            }
+        }
+
+        emitter << YAML::EndMap;
+    }
+
+    emitter << YAML::EndSeq;
+
+    if (type == "inputs") {
+        export_pd.trigger = make_shared<trigger>(parent->name, name + "inputs");
+        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name,
+                name + "inputs", emitter.c_str(), export_pd.trigger->id());
+
+        if (import_pd.trigger != nullptr) {
+            import_pd.trigger->add_trigger(shared_from_this());
+        }
+
+        k.add_device(export_pd.trigger);
+        k.add_device(export_pd.pd);
+    } else {
+        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name,
+                name + "inputs", emitter.c_str());
+    }
+}
+
+void preproc_device::tick() {
+    if (export_pd.trigger != nullptr) {
+        export_pd.trigger->trigger_modules();
+    }
+}
 
 //! default construction
 /*!
@@ -50,6 +151,7 @@ pd_preprocessor::pd_preprocessor(const char* name, const YAML::Node& node) :
     pd_provider(name), pd_consumer(name),
     runnable(node), module_base("module_pd_preprocessor", name, node) 
 {
+    this->node = YAML::Clone(node);
 }
 
 //! destrcution
@@ -58,6 +160,11 @@ pd_preprocessor::~pd_preprocessor() {
         
 // additional module init stuff
 void pd_preprocessor::init() {
+    for (const auto& kv : node["devices"]) {
+        auto sdev = make_shared<preproc_device>(kv.first.as<string>(),
+                shared_from_this(), kv.second);
+        devices.push_back(sdev);
+    }
 }
 
 //! handler function called if thread is running
@@ -111,6 +218,10 @@ int pd_preprocessor::set_state(module_state_t state) {
         case init_2_safeop:
         case init_2_preop: {
             // ====> initial devices            
+            for (const auto& sdev : devices) {
+                sdev->open();
+            }
+
             if (state == module_state_preop)
                 break;
         }

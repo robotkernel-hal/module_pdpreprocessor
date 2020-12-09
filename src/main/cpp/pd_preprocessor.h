@@ -34,6 +34,59 @@ namespace module_pd_preprocessor {
 }
 #endif
 
+// forward declarations
+class pd_preprocessor;
+
+typedef struct {
+    robotkernel::sp_trigger_t trigger;
+    robotkernel::sp_process_data_t pd;
+    size_t length;
+    size_t hash;
+} pd_t;
+
+class preproc_entry 
+{
+    public:
+        std::string field_name;
+        std::string cast_to;
+        std::string convert_to;
+        double scaling;
+        bool hide;
+
+    public:
+        preproc_entry();
+        preproc_entry(const YAML::Node& node);
+};
+
+class preproc_device :
+    public std::enable_shared_from_this<preproc_device>,
+    public robotkernel::pd_provider,
+    public robotkernel::pd_consumer,
+    public robotkernel::trigger_base
+{
+    public: 
+        std::shared_ptr<pd_preprocessor> parent;
+        std::string name;
+
+        std::string type;
+        std::string pd_name;
+        pd_t import_pd;
+        pd_t export_pd;
+        std::map<std::string, preproc_entry> entries;
+    public:
+        // construction
+        preproc_device(const std::string& name, 
+                std::shared_ptr<pd_preprocessor> parent, const YAML::Node& node);
+        // destruction
+        ~preproc_device();
+
+        void open();
+
+        // trigger function
+        void tick();
+};
+
+
 // forward declaration
 class pd_preprocessor : 
     public std::enable_shared_from_this<pd_preprocessor>,
@@ -51,6 +104,9 @@ class pd_preprocessor :
 
         robotkernel::sp_process_data_t pdin;         //!< named process data
         size_t provider_hash;
+
+        YAML::Node node;
+        std::list<std::shared_ptr<preproc_device> > devices;
 
         //! default construction
         /*!
