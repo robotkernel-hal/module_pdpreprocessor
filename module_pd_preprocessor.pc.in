@@ -3,9 +3,9 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: module_posix_timer
+Name: module_pd_preprocessor
 Description: robotkernel module to provide a posix timer interface for trigger generation
-URL: rmc-github.robotic.dlr.de:robotkernel/module_posix_timer.git
+URL: rmc-github.robotic.dlr.de:robotkernel/module_pd_preprocessor.git
 Version: @VERSION@
 Cflags: -I@includedir@ 
 

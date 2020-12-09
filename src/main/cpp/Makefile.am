@@ -1,9 +1,9 @@
 ACLOCAL_AMFLAGS = -I m4
 
-lib_LTLIBRARIES = libmodule_posix_timer.la
+lib_LTLIBRARIES = libmodule_pd_preprocessor.la
 
-libmodule_posix_timer_la_SOURCES  = posix_timer.cpp
-libmodule_posix_timer_la_CPPFLAGS = -Wall -I$(srcdir) -I$(builddir) \
+libmodule_pd_preprocessor_la_SOURCES  = pd_preprocessor.cpp
+libmodule_pd_preprocessor_la_CPPFLAGS = -Wall -I$(srcdir) -I$(builddir) \
                                     @ROBOTKERNEL_CFLAGS@
-libmodule_posix_timer_la_LDFLAGS  = -Wall -release $(PACKAGE_VERSION)
+libmodule_pd_preprocessor_la_LDFLAGS  = -Wall -release $(PACKAGE_VERSION)
 

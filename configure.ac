@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT(
-    [module_posix_timer],
+   [module_pd_preprocessor],
 	m4_esyscmd_s([cat project.properties | grep VERSION    | cut -d'=' -f2 | xargs printf "%s"]),
 	m4_esyscmd_s([cat project.properties | grep MAINTAINER | cut -d'=' -f2 | xargs printf "%s"]))
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
@@ -58,6 +58,6 @@ case $target in
         ;;
 esac
 
-AC_CONFIG_FILES([Makefile src/main/cpp/Makefile module_posix_timer.pc])
+AC_CONFIG_FILES([Makefile src/main/cpp/Makefile module_pd_preprocessor.pc])
 
 AC_OUTPUT

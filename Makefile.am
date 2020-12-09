@@ -1,7 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4
 SUBDIRS=src/main/cpp
 
-pkgconfig_DATA = module_posix_timer.pc
+pkgconfig_DATA = module_pd_preprocessor.pc
 
 install-exec-hook:
 	mkdir -p $(DESTDIR)$(prefix)/doc
