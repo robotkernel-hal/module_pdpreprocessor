@@ -164,8 +164,17 @@ void preproc_device::open() {
         k.add_device(export_pd.trigger);
         k.add_device(export_pd.pd);
     } else {
+        export_pd.trigger = make_shared<trigger>(parent->name, name + "outputs");
         export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name,
-                name + "inputs", emitter.c_str());
+                name + "outputs", emitter.c_str(), export_pd.trigger->id());
+        
+        import_pd.hash = import_pd.pd->set_provider(shared_from_this());
+        export_pd.hash = export_pd.pd->set_consumer(shared_from_this());
+        
+        export_pd.trigger->add_trigger(shared_from_this());
+
+        k.add_device(export_pd.trigger);
+        k.add_device(export_pd.pd);
     }
 }
 
@@ -207,7 +216,7 @@ static void convert_to_switch(pd_data_types import_dt, double scaling, const uin
 }
 
 void preproc_device::tick() {
-    if(type == "inputs") {
+    if (type == "inputs") {
         const auto& import_buf = import_pd.pd->pop(import_pd.hash);
         const auto& export_buf = export_pd.pd->next(export_pd.hash);
 
@@ -259,10 +268,62 @@ void preproc_device::tick() {
         }
 
         export_pd.pd->push(export_pd.hash);
-    }
 
-    if (export_pd.trigger != nullptr) {
-        export_pd.trigger->trigger_modules();
+        if (export_pd.trigger != nullptr) {
+            export_pd.trigger->trigger_modules();
+        }
+    } else {
+        const auto& import_buf = import_pd.pd->next(import_pd.hash);
+        const auto& export_buf = export_pd.pd->pop(export_pd.hash);
+
+        for (const auto& kv : entries) {
+            auto& e = kv.second;
+            uint8_t *import_val = &import_buf[e.import_offset];
+            uint8_t *export_val = &export_buf[e.export_offset];
+
+            if (e.just_copy) {
+                memcpy(import_val, export_val, e.import_len);
+            } else {
+                pd_data_types import_dt = e.import_dt;
+                if (e.cast_to != "") {
+                    import_dt = e.cast_to_dt;
+                }
+
+                if (e.convert_to != "") {
+                    switch (import_dt) {
+                        case PD_DT_UNKNOWN:
+                        case PD_DT_NONE:
+                            break;
+                        case PD_DT_FLOAT:
+                            convert_to_switch<float>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            break;
+                        case PD_DT_DOUBLE:
+                            convert_to_switch<double>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            break;
+                        case PD_DT_UINT8:
+                            convert_to_switch<uint8_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            break;
+                        case PD_DT_UINT16:
+                            convert_to_switch<uint16_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            break;
+                        case PD_DT_UINT32:
+                            convert_to_switch<uint32_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            break;
+                        case PD_DT_INT8:
+                            convert_to_switch<int8_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            break;
+                        case PD_DT_INT16:
+                            convert_to_switch<int16_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            break;
+                        case PD_DT_INT32:
+                            convert_to_switch<int32_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            break;
+                    }
+                }
+            }
+        }
+
+        import_pd.pd->push(import_pd.hash);
     }
 }
 
