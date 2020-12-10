@@ -44,6 +44,7 @@ using namespace string_util;
         
 preproc_entry::preproc_entry(const YAML::Node& node) {
     field_name = get_as<string>(node, "field_name");
+    alias      = get_as<string>(node, "alias", "");
     cast_to    = get_as<string>(node, "cast_to", "");
     convert_to = get_as<string>(node, "convert_to", "");
     scaling    = get_as<double>(node, "scaling", 1.);
@@ -53,7 +54,7 @@ preproc_entry::preproc_entry(const YAML::Node& node) {
 // construction
 preproc_device::preproc_device(const std::string& name, 
         std::shared_ptr<pd_preprocessor> parent, const YAML::Node& node) :
-    pd_provider(name), pd_consumer(name), name(name)
+    pd_provider(name), pd_consumer(name), parent(parent), name(name)
 {
     type = get_as<string>(node, "type");
     pd_name = get_as<string>(node, "pd_name");
@@ -71,8 +72,11 @@ preproc_device::~preproc_device() {
 void preproc_device::open() {
     kernel& k = *kernel::get_instance();
 
+    parent->log(info, "%s: trying to get %s\n", name.c_str(), pd_name.c_str());
+
     import_pd.pd = k.get_process_data(pd_name);
     if (import_pd.pd->clk_device != "") {
+        parent->log(info, "%s: trying to get %s\n", name.c_str(), import_pd.pd->clk_device.c_str());
         import_pd.trigger = k.get_trigger(import_pd.pd->clk_device);
     }
 
@@ -92,8 +96,8 @@ void preproc_device::open() {
             string value = kv.second.as<string>();
             bool hide = false;
 
-            if (entries.find(key) != entries.end()) {
-                auto& e = entries[key];
+            if (entries.find(value) != entries.end()) {
+                auto& e = entries[value];
                 hide = e.hide;
 
                 if (e.convert_to != "") {
@@ -101,9 +105,14 @@ void preproc_device::open() {
                 } else if (e.cast_to != "") {
                     key = e.cast_to;
                 }
+
+                if (e.alias != "") {
+                    value = e.alias;
+                }
             }
                 
             if (!hide) {
+                parent->log(info, "%s: adding %s : %s\n", name.c_str(), key.c_str(), value.c_str());
                 emitter << YAML::Key << key << YAML::Value << value;
 
                 ssize_t dt_len = process_data::get_data_type_length(key);

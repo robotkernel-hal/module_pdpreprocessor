@@ -50,11 +50,12 @@ class preproc_entry
         std::string field_name;
         std::string cast_to;
         std::string convert_to;
+	std::string alias;
         double scaling;
         bool hide;
 
     public:
-        preproc_entry();
+        preproc_entry() {};
         preproc_entry(const YAML::Node& node);
 };
 
