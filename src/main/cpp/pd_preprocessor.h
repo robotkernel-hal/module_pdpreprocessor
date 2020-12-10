@@ -52,9 +52,21 @@ class preproc_entry
         std::string convert_to;
         double scaling;
         bool hide;
+        bool just_copy;
 
+        robotkernel::pd_data_types cast_to_dt;
+        robotkernel::pd_data_types convert_to_dt;
+
+        size_t export_len;
+        off_t export_offset;
+
+        size_t import_len;
+        off_t import_offset;
+        robotkernel::pd_data_types import_dt;
     public:
-        preproc_entry();
+        preproc_entry() :
+            field_name(""), cast_to(""), convert_to(""), scaling(1.), hide(false), just_copy(true)
+        { };
         preproc_entry(const YAML::Node& node);
 };
 

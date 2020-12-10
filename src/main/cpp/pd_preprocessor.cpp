@@ -48,6 +48,16 @@ preproc_entry::preproc_entry(const YAML::Node& node) {
     convert_to = get_as<string>(node, "convert_to", "");
     scaling    = get_as<double>(node, "scaling", 1.);
     hide       = get_as<bool>  (node, "hide", false);
+
+    just_copy  = false;
+
+    if (convert_to != "") {
+        convert_to_dt = process_data::get_data_type(convert_to);
+    }
+    
+    if (cast_to != "") {
+        cast_to_dt = process_data::get_data_type(cast_to);
+    }
 }
 
 // construction
@@ -84,6 +94,8 @@ void preproc_device::open() {
     
     export_pd.length = 0;
 
+    off_t import_offset = 0, export_offset = 0;
+
     for (const auto& pd_desc_entry : pd_desc) {
         emitter << YAML::BeginMap;
         
@@ -91,9 +103,16 @@ void preproc_device::open() {
             string key = kv.first.as<string>();
             string value = kv.second.as<string>();
             bool hide = false;
+                
+            // calculate import offset
+            pd_data_types import_dt = process_data::get_data_type(key);
+            ssize_t dt_len = process_data::get_data_type_length(key);
+            if (dt_len == -1) {
+                parent->log(error, "unknown data_type %s\n", key.c_str());
+            }
 
-            if (entries.find(key) != entries.end()) {
-                auto& e = entries[key];
+            if (entries.find(value) != entries.end()) {
+                auto& e = entries[value];
                 hide = e.hide;
 
                 if (e.convert_to != "") {
@@ -101,16 +120,26 @@ void preproc_device::open() {
                 } else if (e.cast_to != "") {
                     key = e.cast_to;
                 }
+            } else {
+                entries[value].field_name = value;
             }
+
+            entries[key].import_len = dt_len;
+            entries[key].import_offset = import_offset;
+            entries[key].import_dt = import_dt;
+            import_offset += dt_len;
                 
             if (!hide) {
                 emitter << YAML::Key << key << YAML::Value << value;
 
-                ssize_t dt_len = process_data::get_data_type_length(key);
+                dt_len = process_data::get_data_type_length(key);
                 if (dt_len == -1) {
                     parent->log(error, "unknown data_type %s\n", key.c_str());
                 }
 
+                entries[key].import_len = dt_len;
+                entries[key].export_offset = export_offset;
+                export_offset += dt_len;
                 export_pd.length += dt_len;
             }
         }
@@ -125,6 +154,9 @@ void preproc_device::open() {
         export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name,
                 name + "inputs", emitter.c_str(), export_pd.trigger->id());
 
+        import_pd.hash = import_pd.pd->set_consumer(shared_from_this());
+        export_pd.hash = export_pd.pd->set_provider(shared_from_this());
+
         if (import_pd.trigger != nullptr) {
             import_pd.trigger->add_trigger(shared_from_this());
         }
@@ -137,13 +169,104 @@ void preproc_device::open() {
     }
 }
 
+template <typename in_dt, typename out_dt> 
+static void convert_to(double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
+    out_dt out = scaling * *((in_dt *)in_buf);
+    *((out_dt *)out_buf) = out;
+}
+
+template <typename convert_dt>
+static void convert_to_switch(pd_data_types import_dt, double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
+    switch (import_dt) {
+        case PD_DT_FLOAT:
+            convert_to<float, convert_dt>(scaling, in_buf, out_buf);
+            break;
+        case PD_DT_DOUBLE:
+            convert_to<double, convert_dt>(scaling, in_buf, out_buf);
+            break;
+        case PD_DT_UINT8:
+            convert_to<uint8_t, convert_dt>(scaling, in_buf, out_buf);
+            break;
+        case PD_DT_UINT16:
+            convert_to<uint16_t, convert_dt>(scaling, in_buf, out_buf);
+            break;
+        case PD_DT_UINT32:
+            convert_to<uint32_t, convert_dt>(scaling, in_buf, out_buf);
+            break;
+        case PD_DT_INT8:
+            convert_to<int8_t, convert_dt>(scaling, in_buf, out_buf);
+            break;
+        case PD_DT_INT16:
+            convert_to<int16_t, convert_dt>(scaling, in_buf, out_buf);
+            break;
+        case PD_DT_INT32:
+            convert_to<int32_t, convert_dt>(scaling, in_buf, out_buf);
+            break;
+        default: break;
+    }
+}
+
 void preproc_device::tick() {
+    if(type == "inputs") {
+        const auto& import_buf = import_pd.pd->pop(import_pd.hash);
+        const auto& export_buf = export_pd.pd->next(export_pd.hash);
+
+        for (const auto& kv : entries) {
+            auto& e = kv.second;
+            uint8_t *import_val = &import_buf[e.import_offset];
+            uint8_t *export_val = &export_buf[e.export_offset];
+
+            if (e.just_copy) {
+                memcpy(export_val, import_val, e.import_len);
+            } else {
+                pd_data_types import_dt = e.import_dt;
+                if (e.cast_to != "") {
+                    import_dt = e.cast_to_dt;
+                }
+
+                if (e.convert_to != "") {
+                    switch (e.convert_to_dt) {
+                        case PD_DT_UNKNOWN:
+                        case PD_DT_NONE:
+                            break;
+                        case PD_DT_FLOAT:
+                            convert_to_switch<float>(import_dt, e.scaling, import_val, export_val);
+                            break;
+                        case PD_DT_DOUBLE:
+                            convert_to_switch<double>(import_dt, e.scaling, import_val, export_val);
+                            break;
+                        case PD_DT_UINT8:
+                            convert_to_switch<uint8_t>(import_dt, e.scaling, import_val, export_val);
+                            break;
+                        case PD_DT_UINT16:
+                            convert_to_switch<uint16_t>(import_dt, e.scaling, import_val, export_val);
+                            break;
+                        case PD_DT_UINT32:
+                            convert_to_switch<uint32_t>(import_dt, e.scaling, import_val, export_val);
+                            break;
+                        case PD_DT_INT8:
+                            convert_to_switch<int8_t>(import_dt, e.scaling, import_val, export_val);
+                            break;
+                        case PD_DT_INT16:
+                            convert_to_switch<int16_t>(import_dt, e.scaling, import_val, export_val);
+                            break;
+                        case PD_DT_INT32:
+                            convert_to_switch<int32_t>(import_dt, e.scaling, import_val, export_val);
+                            break;
+                    }
+                }
+            }
+        }
+
+        export_pd.pd->push(export_pd.hash);
+    }
+
     if (export_pd.trigger != nullptr) {
         export_pd.trigger->trigger_modules();
     }
 }
 
-//! default construction
+ //! default construction
 /*!
  * \param node yaml configuration node
  */
