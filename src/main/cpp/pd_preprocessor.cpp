@@ -179,13 +179,13 @@ void preproc_device::open() {
 }
 
 template <typename in_dt, typename out_dt> 
-static void convert_to(double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
+static inline void convert_to(double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
     out_dt out = scaling * *((in_dt *)in_buf);
     *((out_dt *)out_buf) = out;
 }
 
 template <typename convert_dt>
-static void convert_to_switch(pd_data_types import_dt, double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
+static inline void convert_to_switch(pd_data_types import_dt, double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
     switch (import_dt) {
         case PD_DT_FLOAT:
             convert_to<float, convert_dt>(scaling, in_buf, out_buf);
@@ -361,8 +361,6 @@ void pd_preprocessor::run() {
   \return success or failure
   */
 int pd_preprocessor::set_state(module_state_t state) {
-    kernel& k = *kernel::get_instance();
-
     // get transition
     uint32_t transition = GEN_STATE(this->state, state);
 
