@@ -2,14 +2,19 @@ The module **libmodule_pd_preprocessor.so** is used to scale, cast and convert p
 
 # Functional principle 
 
-The posix timer module supports two different modes. 
+The pd preprocessor module supports different modes. 
 
-## Modes
+## Scaling
 
-Two different modes are supported by **module_posix_timer**.
+Values from process data can be scaled by a given floating point value.
 
-* ***nanosleep :*** In this mode the **module_posix_timer** main thread just does a nanosleep until the period time has been elapsed. If the nanosleep call was interrupted by some signal it will sleep until the calculated period end time has been reached. This mode is easy and efficient as well. The **module_posix_timer*** thread should run at a very high priority to ensure, that it will be waken up when it's necessary. 
-* ***posix_timer :*** This mode creates a timer with timer_create. It configures the timer and connects it to the given signal number from the configuration string. 
+## Casting
+
+Target values may be cast to a different data type.
+
+## Conversion
+
+Target values can be converted to an other data type prior to be scaled.
 
 ## Example config file
 
@@ -62,12 +67,12 @@ devices:
 This module registers a trigger device to the robotkernel with the following naming schemeː
 
 ```
-<name>.posix_timer.trigger
+<name>.inputs.trigger
 ```
 
 ## Process data device
 
-The module also provides a cyclic process. It contains the actual timer interval.
+The module also provides a cyclic process. 
 
 ```
 <name>.inputs.pd

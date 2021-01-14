@@ -143,7 +143,7 @@ void preproc_device::open() {
             entries[value].import_dt = import_dt;
             import_offset += dt_len;
 
-	    string e_name = value;
+            string e_name = value;
             if (entries[value].alias != "") {
                 e_name = entries[value].alias;
             }
@@ -368,6 +368,12 @@ void pd_preprocessor::init() {
         auto sdev = make_shared<preproc_device>(kv.first.as<string>(),
                 shared_from_this(), kv.second);
         devices.push_back(sdev);
+    }
+
+    std::list<YAML::Node> instances_list;
+    robotkernel::parse_templates(node, instances_list);
+
+    for (const auto& dev_config : instances_list) {
     }
 }
 
