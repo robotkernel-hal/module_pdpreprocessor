@@ -1,4 +1,4 @@
-The module **libmodule_posix_timer.so** is used to generate deterministic triggers for other modules.
+The module **libmodule_pd_preprocessor.so** is used to scale, cast and convert process data device members.
 
 # Functional principle 
 
@@ -16,26 +16,9 @@ Two different modes are supported by **module_posix_timer**.
 This example config file can be used as a template for own configurations.
 
 ```yaml
-# Configuration file for module_posix_timer.
+# Configuration file for module_pd_preprocessor.
 #
 # vim: ft=yaml
-
-#########################################################
-# timer settings
-
-# Defines the tick interval in seconds for the trigger device.
-interval: 0.002
-
-# Sets the operating mode of the module.
-# Values can be "nanosleep" or "timer".
-#mode: nanosleep
-
-# Signal number to be used in "timer"-mode for timer_create.
-#signo: 35
-
-# Setting realtime priorities for the timer thread.
-prio: 60
-affinity: 0x01
 
 #########################################################
 # logging settings
@@ -43,6 +26,35 @@ affinity: 0x01
 # Standard robotkernel module local loglevel.
 #loglevel: verbose
 
+#########################################################
+# direct device settings
+devices:
+  axis_0_msr:
+    type: inputs
+    pd_name: dsp402.axis_0.inputs.pd
+    entries:
+    - field_name: ecat.slave_1.inputs.pd.Position
+      alias: position
+      convert_to: double
+      cast_to: int32_t
+      scaling: 5.992112452678286e-06
+    - field_name: ecat.slave_1.inputs.pd.Statusword
+      alias: statusword
+    - field_name: ecat.slave_1.inputs.pd.Modes of operation display
+      alias: modes_of_operation_display
+  axis_0_cmd:
+    type: outputs
+    pd_name: dsp402.axis_0.outputs.pd
+    entries:
+    - field_name: ecat.slave_1.outputs.pd.Controlword
+      alias: controlword
+    - field_name: ecat.slave_1.outputs.pd.Modes of operation
+      alias: modes_of_operation
+    - field_name: ecat.slave_1.outputs.pd.Target position
+      alias: target_position
+      convert_to: double
+      cast_to: uint32_t
+      scaling: 166886.05360752725
 ```
 
 ## Trigger device
