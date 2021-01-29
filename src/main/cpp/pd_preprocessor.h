@@ -95,6 +95,8 @@ class preproc_device :
 
         void open();
 
+        void close();
+
         // trigger function
         void tick();
 };

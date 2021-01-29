@@ -143,7 +143,7 @@ void preproc_device::open() {
             entries[value].import_dt = import_dt;
             import_offset += dt_len;
 
-	    string e_name = value;
+            string e_name = value;
             if (entries[value].alias != "") {
                 e_name = entries[value].alias;
             }
@@ -195,6 +195,31 @@ void preproc_device::open() {
 
         k.add_device(export_pd.trigger);
         k.add_device(export_pd.pd);
+    }
+}
+
+void preproc_device::close() {
+    kernel& k = *kernel::get_instance();
+
+    if (type == "inputs") {
+        if (import_pd.trigger != nullptr) {
+            import_pd.trigger->remove_trigger(shared_from_this());
+        }
+    } else {
+        if (export_pd.trigger) {
+            export_pd.trigger->remove_trigger(shared_from_this());
+        }
+    }
+
+    if (export_pd.pd) {
+        k.remove_device(export_pd.pd);
+        export_pd.pd = nullptr;
+
+    }
+    
+    if (export_pd.trigger) {
+        k.remove_device(export_pd.trigger);
+        export_pd.trigger = nullptr;
     }
 }
 
@@ -403,6 +428,10 @@ int pd_preprocessor::set_state(module_state_t state) {
         case preop_2_init:
         case preop_2_boot:
             // ====> deinit devices
+            for (const auto& sdev : devices) {
+                sdev->close();
+            }
+
         case init_2_init:
             // ====> re-/open ethercat device
             if (state == module_state_init)
