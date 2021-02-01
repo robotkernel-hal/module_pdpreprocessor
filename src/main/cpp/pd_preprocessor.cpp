@@ -198,6 +198,36 @@ void preproc_device::open() {
     }
 }
 
+void preproc_device::close() {
+    kernel& k = *kernel::get_instance();
+
+    k.remove_device(export_pd.pd);
+    k.remove_device(export_pd.trigger);
+
+    if (type == "inputs") {
+        if (import_pd.trigger != nullptr) {
+            import_pd.trigger->remove_trigger(shared_from_this());
+        }
+
+        export_pd.pd->reset_provider(export_pd.hash);
+        export_pd.hash = 0;
+
+        import_pd.pd->reset_consumer(import_pd.hash);
+        import_pd.hash = 0;
+    } else {
+        export_pd.trigger->remove_trigger(shared_from_this());
+
+        export_pd.pd->reset_consumer(export_pd.hash);
+        export_pd.hash = 0;
+
+        import_pd.pd->reset_provider(import_pd.hash);
+        import_pd.hash = 0;
+    }
+
+    export_pd.pd = nullptr;
+    export_pd.trigger = nullptr;
+}
+
 template <typename in_dt, typename out_dt> 
 static inline void convert_to(double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
     out_dt out = scaling * *((in_dt *)in_buf);
@@ -409,6 +439,10 @@ int pd_preprocessor::set_state(module_state_t state) {
         case preop_2_init:
         case preop_2_boot:
             // ====> deinit devices
+            for (const auto& sdev : devices) {
+                sdev->close();
+            }
+
         case init_2_init:
             // ====> re-/open ethercat device
             if (state == module_state_init)
