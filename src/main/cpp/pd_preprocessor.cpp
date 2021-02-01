@@ -201,26 +201,31 @@ void preproc_device::open() {
 void preproc_device::close() {
     kernel& k = *kernel::get_instance();
 
+    k.remove_device(export_pd.pd);
+    k.remove_device(export_pd.trigger);
+
     if (type == "inputs") {
         if (import_pd.trigger != nullptr) {
             import_pd.trigger->remove_trigger(shared_from_this());
         }
+
+        export_pd.pd->reset_provider(export_pd.hash);
+        export_pd.hash = 0;
+
+        import_pd.pd->reset_consumer(import_pd.hash);
+        import_pd.hash = 0;
     } else {
-        if (export_pd.trigger) {
-            export_pd.trigger->remove_trigger(shared_from_this());
-        }
+        export_pd.trigger->remove_trigger(shared_from_this());
+
+        export_pd.pd->reset_consumer(export_pd.hash);
+        export_pd.hash = 0;
+
+        import_pd.pd->reset_provider(import_pd.hash);
+        import_pd.hash = 0;
     }
 
-    if (export_pd.pd) {
-        k.remove_device(export_pd.pd);
-        export_pd.pd = nullptr;
-
-    }
-    
-    if (export_pd.trigger) {
-        k.remove_device(export_pd.trigger);
-        export_pd.trigger = nullptr;
-    }
+    export_pd.pd = nullptr;
+    export_pd.trigger = nullptr;
 }
 
 template <typename in_dt, typename out_dt> 
