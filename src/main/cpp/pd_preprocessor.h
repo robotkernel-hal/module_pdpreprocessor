@@ -29,12 +29,16 @@
 #include "robotkernel/kernel.h"
 #include "robotkernel/trigger_base.h"
 
+#include "service_provider/key_value/base.h"
+#include "service_provider/key_value/key_value_helper.h"
+
 namespace module_pd_preprocessor {
 #ifdef EMACS
 }
 #endif
 
 // forward declarations
+class preproc_device;
 class pd_preprocessor;
 
 typedef struct {
@@ -50,8 +54,10 @@ class preproc_entry
         std::string field_name;
         std::string cast_to;
         std::string convert_to;
-	std::string alias;
+        std::string alias;
         double scaling;
+        double offset;
+        int64_t raw_offset;
         bool hide;
         bool just_copy;
 
@@ -66,7 +72,7 @@ class preproc_entry
         robotkernel::pd_data_types import_dt;
     public:
         preproc_entry() :
-            field_name(""), cast_to(""), convert_to(""), scaling(1.), hide(false), just_copy(true)
+            field_name(""), cast_to(""), convert_to(""), scaling(1.), offset(0.), raw_offset(0), hide(false), just_copy(true)
         { };
         preproc_entry(const YAML::Node& node);
 };
@@ -108,7 +114,7 @@ class pd_preprocessor :
     public robotkernel::pd_provider,
     public robotkernel::pd_consumer,
     public robotkernel::runnable, 
-    public robotkernel::module_base 
+    public robotkernel::module_base
 {
     private:
         pd_preprocessor();                               //!< prevent default cons
@@ -116,6 +122,8 @@ class pd_preprocessor :
         pd_preprocessor& operator=(const pd_preprocessor&);  //!< prevent assignment
 
     public:
+
+        std::shared_ptr<key_value_slave> kvs;
 
         robotkernel::sp_process_data_t pdin;         //!< named process data
         size_t provider_hash;

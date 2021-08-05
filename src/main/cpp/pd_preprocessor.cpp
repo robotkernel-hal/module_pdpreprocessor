@@ -43,12 +43,14 @@ using namespace module_pd_preprocessor;
 using namespace string_util;
         
 preproc_entry::preproc_entry(const YAML::Node& node) {
-    field_name = get_as<string>(node, "field_name");
-    alias      = get_as<string>(node, "alias", "");
-    cast_to    = get_as<string>(node, "cast_to", "");
-    convert_to = get_as<string>(node, "convert_to", "");
-    scaling    = get_as<double>(node, "scaling", 1.);
-    hide       = get_as<bool>  (node, "hide", false);
+    field_name = get_as<string> (node, "field_name");
+    alias      = get_as<string> (node, "alias", "");
+    cast_to    = get_as<string> (node, "cast_to", "");
+    convert_to = get_as<string> (node, "convert_to", "");
+    scaling    = get_as<double> (node, "scaling", 1.);
+    offset     = get_as<double> (node, "offset", 0.);
+    raw_offset = get_as<int64_t>(node, "raw_offset", 0);
+    hide       = get_as<bool>   (node, "hide", false);
 
     just_copy  = (cast_to == "") && (convert_to == "") && (scaling == 1.);
         
@@ -74,7 +76,8 @@ preproc_entry::preproc_entry(const YAML::Node& node) {
 // construction
 preproc_device::preproc_device(const std::string& name, 
         std::shared_ptr<pd_preprocessor> parent, const YAML::Node& node) :
-    pd_provider(name), pd_consumer(name), parent(parent), name(name)
+    pd_provider(name), pd_consumer(name), 
+    parent(parent), name(name)
 {
     type = get_as<string>(node, "type");
     pd_name = get_as<string>(node, "pd_name");
@@ -87,6 +90,16 @@ preproc_device::preproc_device(const std::string& name,
 
 // destruction
 preproc_device::~preproc_device() {
+}
+
+template<>
+inline void key_value_eval<double>(double* ptr, std::string repr) {
+    *ptr = atof(repr.c_str());
+}
+
+template<>
+inline std::string key_value_repr<double>(double& value) {
+    return string_util::format_string("%f", value);
 }
 
 void preproc_device::open() {
@@ -196,11 +209,22 @@ void preproc_device::open() {
         k.add_device(export_pd.trigger);
         k.add_device(export_pd.pd);
     }
+        /*
+        std::string field_name;
+        std::string cast_to;
+        std::string convert_to;
+        std::string alias;
+        double scaling;
+        double offset;
+        int64_t raw_offset;
+        bool hide;
+        bool just_copy;
+        */
 }
 
 void preproc_device::close() {
     kernel& k = *kernel::get_instance();
-
+    
     k.remove_device(export_pd.pd);
     k.remove_device(export_pd.trigger);
 
@@ -229,37 +253,78 @@ void preproc_device::close() {
 }
 
 template <typename in_dt, typename out_dt> 
-static inline void convert_to(double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
-    out_dt out = scaling * *((in_dt *)in_buf);
+static inline void convert_to(double scaling, const double& offset, const int64_t& raw_offset,
+        const uint8_t *in_buf, const uint8_t *out_buf) {
+    out_dt out = scaling * (*((in_dt *)in_buf) + raw_offset) + offset;
     *((out_dt *)out_buf) = out;
 }
 
 template <typename convert_dt>
-static inline void convert_to_switch(pd_data_types import_dt, double scaling, const uint8_t *in_buf, const uint8_t *out_buf) {
+static inline void convert_to_switch(pd_data_types import_dt, double scaling, const double& offset, const int64_t& raw_offset,
+        const uint8_t *in_buf, const uint8_t *out_buf) {
     switch (import_dt) {
         case PD_DT_FLOAT:
-            convert_to<float, convert_dt>(scaling, in_buf, out_buf);
+            convert_to<float, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         case PD_DT_DOUBLE:
-            convert_to<double, convert_dt>(scaling, in_buf, out_buf);
+            convert_to<double, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         case PD_DT_UINT8:
-            convert_to<uint8_t, convert_dt>(scaling, in_buf, out_buf);
+            convert_to<uint8_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         case PD_DT_UINT16:
-            convert_to<uint16_t, convert_dt>(scaling, in_buf, out_buf);
+            convert_to<uint16_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         case PD_DT_UINT32:
-            convert_to<uint32_t, convert_dt>(scaling, in_buf, out_buf);
+            convert_to<uint32_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         case PD_DT_INT8:
-            convert_to<int8_t, convert_dt>(scaling, in_buf, out_buf);
+            convert_to<int8_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         case PD_DT_INT16:
-            convert_to<int16_t, convert_dt>(scaling, in_buf, out_buf);
+            convert_to<int16_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         case PD_DT_INT32:
-            convert_to<int32_t, convert_dt>(scaling, in_buf, out_buf);
+            convert_to<int32_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        default: break;
+    }
+}
+
+template <typename in_dt, typename out_dt> 
+static inline void convert_to_out(double scaling, const double& offset, const int64_t& raw_offset,
+        const uint8_t *in_buf, const uint8_t *out_buf) {
+    out_dt out = scaling * (*((in_dt *)in_buf) + offset) + raw_offset;
+    *((out_dt *)out_buf) = out;
+}
+
+template <typename convert_dt>
+static inline void convert_to_switch_out(pd_data_types import_dt, double scaling, const double& offset, const int64_t& raw_offset,
+        const uint8_t *in_buf, const uint8_t *out_buf) {
+    switch (import_dt) {
+        case PD_DT_FLOAT:
+            convert_to_out<float, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_DOUBLE:
+            convert_to_out<double, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_UINT8:
+            convert_to_out<uint8_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_UINT16:
+            convert_to_out<uint16_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_UINT32:
+            convert_to_out<uint32_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_INT8:
+            convert_to_out<int8_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_INT16:
+            convert_to_out<int16_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_INT32:
+            convert_to_out<int32_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         default: break;
     }
@@ -278,41 +343,45 @@ void preproc_device::tick() {
             if (e.just_copy) {
                 memcpy(export_val, import_val, e.import_len);
             } else {
-                pd_data_types import_dt = e.import_dt;
+                pd_data_types import_dt = e.import_dt, export_dt;
                 if (e.cast_to != "") {
                     import_dt = e.cast_to_dt;
                 }
 
                 if (e.convert_to != "") {
-                    switch (e.convert_to_dt) {
-                        case PD_DT_UNKNOWN:
-                        case PD_DT_NONE:
-                            break;
-                        case PD_DT_FLOAT:
-                            convert_to_switch<float>(import_dt, e.scaling, import_val, export_val);
-                            break;
-                        case PD_DT_DOUBLE:
-                            convert_to_switch<double>(import_dt, e.scaling, import_val, export_val);
-                            break;
-                        case PD_DT_UINT8:
-                            convert_to_switch<uint8_t>(import_dt, e.scaling, import_val, export_val);
-                            break;
-                        case PD_DT_UINT16:
-                            convert_to_switch<uint16_t>(import_dt, e.scaling, import_val, export_val);
-                            break;
-                        case PD_DT_UINT32:
-                            convert_to_switch<uint32_t>(import_dt, e.scaling, import_val, export_val);
-                            break;
-                        case PD_DT_INT8:
-                            convert_to_switch<int8_t>(import_dt, e.scaling, import_val, export_val);
-                            break;
-                        case PD_DT_INT16:
-                            convert_to_switch<int16_t>(import_dt, e.scaling, import_val, export_val);
-                            break;
-                        case PD_DT_INT32:
-                            convert_to_switch<int32_t>(import_dt, e.scaling, import_val, export_val);
-                            break;
-                    }
+                    export_dt = e.convert_to_dt;
+                } else {
+                    export_dt = import_dt;
+                }
+
+                switch (export_dt) {
+                    case PD_DT_UNKNOWN:
+                    case PD_DT_NONE:
+                        break;
+                    case PD_DT_FLOAT:
+                        convert_to_switch<float>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
+                    case PD_DT_DOUBLE:
+                        convert_to_switch<double>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
+                    case PD_DT_UINT8:
+                        convert_to_switch<uint8_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
+                    case PD_DT_UINT16:
+                        convert_to_switch<uint16_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
+                    case PD_DT_UINT32:
+                        convert_to_switch<uint32_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
+                    case PD_DT_INT8:
+                        convert_to_switch<int8_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
+                    case PD_DT_INT16:
+                        convert_to_switch<int16_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
+                    case PD_DT_INT32:
+                        convert_to_switch<int32_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
                 }
             }
         }
@@ -345,28 +414,28 @@ void preproc_device::tick() {
                         case PD_DT_NONE:
                             break;
                         case PD_DT_FLOAT:
-                            convert_to_switch<float>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            convert_to_switch_out<float>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                         case PD_DT_DOUBLE:
-                            convert_to_switch<double>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            convert_to_switch_out<double>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                         case PD_DT_UINT8:
-                            convert_to_switch<uint8_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            convert_to_switch_out<uint8_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                         case PD_DT_UINT16:
-                            convert_to_switch<uint16_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            convert_to_switch_out<uint16_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                         case PD_DT_UINT32:
-                            convert_to_switch<uint32_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            convert_to_switch_out<uint32_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                         case PD_DT_INT8:
-                            convert_to_switch<int8_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            convert_to_switch_out<int8_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                         case PD_DT_INT16:
-                            convert_to_switch<int16_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            convert_to_switch_out<int16_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                         case PD_DT_INT32:
-                            convert_to_switch<int32_t>(e.convert_to_dt, e.scaling, export_val, import_val);
+                            convert_to_switch_out<int32_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                     }
                 }
@@ -383,7 +452,7 @@ void preproc_device::tick() {
  */
 pd_preprocessor::pd_preprocessor(const char* name, const YAML::Node& node) : 
     pd_provider(name), pd_consumer(name),
-    runnable(node), module_base("module_pd_preprocessor", name, node) 
+    runnable(node), module_base("module_pd_preprocessor", name, node)
 {
     this->node = YAML::Clone(node);
 }
@@ -399,6 +468,12 @@ void pd_preprocessor::init() {
                 shared_from_this(), kv.second);
         devices.push_back(sdev);
     }
+
+    std::list<YAML::Node> instances_list;
+    robotkernel::parse_templates(node, instances_list);
+
+    //for (const auto& dev_config : instances_list) {
+    //}
 }
 
 //! handler function called if thread is running
@@ -411,6 +486,8 @@ void pd_preprocessor::run() {
   \return success or failure
   */
 int pd_preprocessor::set_state(module_state_t state) {
+    kernel& k = *kernel::get_instance();
+
     // get transition
     uint32_t transition = GEN_STATE(this->state, state);
 
@@ -432,6 +509,9 @@ int pd_preprocessor::set_state(module_state_t state) {
                 break;
         case preop_2_init:
         case preop_2_boot:
+            k.remove_device(kvs);
+            kvs = nullptr;
+
             // ====> deinit devices
             for (const auto& sdev : devices) {
                 sdev->close();
@@ -454,8 +534,33 @@ int pd_preprocessor::set_state(module_state_t state) {
         case init_2_safeop:
         case init_2_preop: {
             // ====> initial devices            
+            kvs = make_shared<key_value_slave>(name, "parameters");
+            k.add_device(kvs);
+
             for (const auto& sdev : devices) {
                 sdev->open();
+    
+                for (auto& kv : sdev->entries) {
+                    auto& e    = kv.second;
+
+                    {
+                        auto *kvk = new key_value_key<double>(kvs.get(),
+                                format_string("%s.%s.scaling", sdev->name.c_str(), e.field_name.c_str()), &e.scaling, false);
+                        kvs->_add_key(kvk); 
+                    }
+
+                    {
+                        auto *kvk = new key_value_key<double>(kvs.get(),
+                                format_string("%s.%s.offset", sdev->name.c_str(), e.field_name.c_str()), &e.offset, false);
+                        kvs->_add_key(kvk); 
+                    }
+
+                    {
+                        auto *kvk = new key_value_key<int64_t>(kvs.get(),
+                                format_string("%s.%s.raw_offset", sdev->name.c_str(), e.field_name.c_str()), &e.raw_offset, false);
+                        kvs->_add_key(kvk); 
+                    }
+                }
             }
 
             if (state == module_state_preop)
