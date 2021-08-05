@@ -123,6 +123,21 @@ void preproc_device::open() {
 
     off_t import_offset = 0, export_offset = 0;
 
+    // check if all fields exists in PD
+    for (auto const& e : entries) {
+        bool exists = false;
+        for (const auto& pd_desc_entry : pd_desc) {
+            for (const auto& kv : pd_desc_entry) {
+                string value = kv.second.as<string>();
+                if (value.find(e.first) != std::string::npos) {
+                    exists = true;
+                }
+            }
+        }
+        if (!exists)
+            parent->log(warning, "field '%s' not found in PD\n", e.first.c_str());
+    }
+
     for (const auto& pd_desc_entry : pd_desc) {
         emitter << YAML::BeginMap;
         
