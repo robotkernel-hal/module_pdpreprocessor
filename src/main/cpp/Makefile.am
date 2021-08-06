@@ -4,6 +4,6 @@ lib_LTLIBRARIES = libmodule_pd_preprocessor.la
 
 libmodule_pd_preprocessor_la_SOURCES  = pd_preprocessor.cpp
 libmodule_pd_preprocessor_la_CPPFLAGS = -Wall -I$(srcdir) -I$(builddir) \
-                                    @ROBOTKERNEL_CFLAGS@
+                                    @ROBOTKERNEL_CFLAGS@ @SERVICE_PROVIDER_KEY_VALUE_CFLAGS@
 libmodule_pd_preprocessor_la_LDFLAGS  = -Wall -release $(PACKAGE_VERSION)
 
