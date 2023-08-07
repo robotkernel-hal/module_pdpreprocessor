@@ -9,7 +9,6 @@ AC_INIT(
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
-AC_CANONICAL_TARGET
 
 # Checks for programs.
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
