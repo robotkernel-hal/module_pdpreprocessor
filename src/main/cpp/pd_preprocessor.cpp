@@ -92,16 +92,6 @@ preproc_device::preproc_device(const std::string& name,
 preproc_device::~preproc_device() {
 }
 
-template<>
-inline void key_value_eval<double>(double* ptr, std::string repr) {
-    *ptr = atof(repr.c_str());
-}
-
-template<>
-inline std::string key_value_repr<double>(double& value) {
-    return string_util::format_string("%f", value);
-}
-
 void preproc_device::open() {
     kernel& k = *kernel::get_instance();
 
