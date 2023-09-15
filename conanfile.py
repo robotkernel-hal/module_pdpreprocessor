@@ -8,7 +8,7 @@ class MainProject(base.RobotkernelConanFile):
     exports_sources = ["*", "!.gitignore"] + ["!%s" % x for x in tools.Git().excluded_files()]
 
     def requirements(self):
-        self.requires("robotkernel/[~=5]@robotkernel/unstable")
-        self.requires("service_provider_process_data_inspection/[~=5]@robotkernel/unstable")
-        self.requires("service_provider_key_value/[~=5]@robotkernel/unstable")
+        self.requires("robotkernel/[~=5]@robotkernel/stable")
+        self.requires("service_provider_process_data_inspection/[~=5]@robotkernel/stable")
+        self.requires("service_provider_key_value/[~=5]@robotkernel/stable")
 
