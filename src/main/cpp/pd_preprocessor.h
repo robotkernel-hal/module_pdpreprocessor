@@ -45,7 +45,8 @@ typedef struct {
     robotkernel::sp_trigger_t trigger;
     robotkernel::sp_process_data_t pd;
     size_t length;
-    size_t hash;
+    robotkernel::sp_pd_provider_t provider;
+    robotkernel::sp_pd_consumer_t consumer;
 } pd_t;
 
 class preproc_entry 
@@ -79,8 +80,6 @@ class preproc_entry
 
 class preproc_device :
     public std::enable_shared_from_this<preproc_device>,
-    public robotkernel::pd_provider,
-    public robotkernel::pd_consumer,
     public robotkernel::trigger_base
 {
     public: 
@@ -111,8 +110,6 @@ class preproc_device :
 // forward declaration
 class pd_preprocessor : 
     public std::enable_shared_from_this<pd_preprocessor>,
-    public robotkernel::pd_provider,
-    public robotkernel::pd_consumer,
     public robotkernel::runnable, 
     public robotkernel::module_base
 {
@@ -126,7 +123,7 @@ class pd_preprocessor :
         std::shared_ptr<key_value_slave> kvs;
 
         robotkernel::sp_process_data_t pdin;         //!< named process data
-        size_t provider_hash;
+        robotkernel::sp_pd_provider_t pdin_provider;
 
         YAML::Node node;
         std::list<std::shared_ptr<preproc_device> > devices;

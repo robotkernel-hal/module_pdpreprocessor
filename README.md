@@ -60,6 +60,9 @@ devices:
       convert_to: double
       cast_to: uint32_t
       scaling: 166886.05360752725
+      calibration:
+      - clamp_range: [ 1380, -1380 ]
+
 ```
 
 ## Trigger device

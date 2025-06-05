@@ -76,7 +76,6 @@ preproc_entry::preproc_entry(const YAML::Node& node) {
 // construction
 preproc_device::preproc_device(const std::string& name, 
         std::shared_ptr<pd_preprocessor> parent, const YAML::Node& node) :
-    pd_provider(name), pd_consumer(name), 
     parent(parent), name(name)
 {
     type = get_as<string>(node, "type");
@@ -188,30 +187,23 @@ void preproc_device::open() {
     emitter << YAML::EndSeq;
 
     if (type == "inputs") {
-        export_pd.trigger = make_shared<trigger>(parent->name, name + ".inputs");
-        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name,
-                name + ".inputs", emitter.c_str(), export_pd.trigger->id());
+        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".inputs", emitter.c_str());
+        import_pd.consumer = make_shared<pd_consumer>(parent->name + "." + name + ".inputs");
+        import_pd.pd->set_consumer(import_pd.consumer);
+        
+        export_pd.provider = make_shared<pd_provider>(parent->name + "." + name + ".outputs");
+        export_pd.pd->set_provider(export_pd.provider);
+        import_pd.pd->trigger_dev->add_trigger(shared_from_this());
 
-        import_pd.hash = import_pd.pd->set_consumer(shared_from_this());
-        export_pd.hash = export_pd.pd->set_provider(shared_from_this());
-
-        if (import_pd.trigger != nullptr) {
-            import_pd.trigger->add_trigger(shared_from_this());
-        }
-
-        k.add_device(export_pd.trigger);
         k.add_device(export_pd.pd);
     } else {
-        export_pd.trigger = make_shared<trigger>(parent->name, name + ".outputs");
-        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name,
-                name + ".outputs", emitter.c_str(), export_pd.trigger->id());
-        
-        import_pd.hash = import_pd.pd->set_provider(shared_from_this());
-        export_pd.hash = export_pd.pd->set_consumer(shared_from_this());
-        
-        export_pd.trigger->add_trigger(shared_from_this());
+        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".outputs", emitter.c_str());
+        import_pd.provider = make_shared<pd_provider>(parent->name + "." + name + ".outputs");
+        import_pd.pd->set_provider(import_pd.provider);
+        export_pd.consumer = make_shared<pd_consumer>(parent->name + "." + name + ".inputs");
+        export_pd.pd->set_consumer(export_pd.consumer);
+        export_pd.pd->trigger_dev->add_trigger(shared_from_this());
 
-        k.add_device(export_pd.trigger);
         k.add_device(export_pd.pd);
     }
         /*
@@ -234,23 +226,21 @@ void preproc_device::close() {
     k.remove_device(export_pd.trigger);
 
     if (type == "inputs") {
-        if (import_pd.trigger != nullptr) {
-            import_pd.trigger->remove_trigger(shared_from_this());
-        }
+        import_pd.pd->trigger_dev->remove_trigger(shared_from_this());
 
-        export_pd.pd->reset_provider(export_pd.hash);
-        export_pd.hash = 0;
+        export_pd.pd->reset_provider(export_pd.provider);
+        export_pd.provider = nullptr;
 
-        import_pd.pd->reset_consumer(import_pd.hash);
-        import_pd.hash = 0;
+        import_pd.pd->reset_consumer(import_pd.consumer);
+        import_pd.consumer = nullptr;
     } else {
-        export_pd.trigger->remove_trigger(shared_from_this());
+        export_pd.pd->trigger_dev->remove_trigger(shared_from_this());
 
-        export_pd.pd->reset_consumer(export_pd.hash);
-        export_pd.hash = 0;
+        export_pd.pd->reset_consumer(export_pd.consumer);
+        export_pd.consumer = nullptr;
 
-        import_pd.pd->reset_provider(import_pd.hash);
-        import_pd.hash = 0;
+        import_pd.pd->reset_provider(import_pd.provider);
+        import_pd.provider = nullptr;
     }
 
     export_pd.pd = nullptr;
@@ -337,8 +327,8 @@ static inline void convert_to_switch_out(pd_data_types import_dt, double scaling
 
 void preproc_device::tick() {
     if (type == "inputs") {
-        const auto& import_buf = import_pd.pd->pop(import_pd.hash);
-        const auto& export_buf = export_pd.pd->next(export_pd.hash);
+        const auto& import_buf = import_pd.pd->pop(import_pd.consumer);
+        const auto& export_buf = export_pd.pd->next(export_pd.provider);
 
         for (const auto& kv : entries) {
             auto& e = kv.second;
@@ -391,14 +381,10 @@ void preproc_device::tick() {
             }
         }
 
-        export_pd.pd->push(export_pd.hash);
-
-        if (export_pd.trigger != nullptr) {
-            export_pd.trigger->trigger_modules();
-        }
+        export_pd.pd->push(export_pd.provider);
     } else {
-        const auto& import_buf = import_pd.pd->next(import_pd.hash);
-        const auto& export_buf = export_pd.pd->pop(export_pd.hash);
+        const auto& import_buf = import_pd.pd->next(import_pd.provider);
+        const auto& export_buf = export_pd.pd->pop(export_pd.consumer);
 
         for (const auto& kv : entries) {
             auto& e = kv.second;
@@ -447,7 +433,7 @@ void preproc_device::tick() {
             }
         }
 
-        import_pd.pd->push(import_pd.hash);
+        import_pd.pd->push(import_pd.provider);
     }
 }
 
@@ -456,7 +442,6 @@ void preproc_device::tick() {
  * \param node yaml configuration node
  */
 pd_preprocessor::pd_preprocessor(const char* name, const YAML::Node& node) : 
-    pd_provider(name), pd_consumer(name),
     runnable(node), module_base("module_pd_preprocessor", name, node)
 {
     this->node = YAML::Clone(node);

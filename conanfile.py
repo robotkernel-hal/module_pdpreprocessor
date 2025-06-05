@@ -9,7 +9,7 @@ class MainProject(ConanFile):
     exports_sources = ["*", "!.gitignore"]
 
     def requirements(self):
-        self.requires("robotkernel/[~5]@robotkernel/stable")
-        self.requires("service_provider_process_data_inspection/[~5]@robotkernel/stable")
-        self.requires("service_provider_key_value/[~5]@robotkernel/stable")
+        self.requires("robotkernel/[~6]@robotkernel/unstable")
+        self.requires("service_provider_process_data_inspection/[~6]@robotkernel/unstable")
+        self.requires("service_provider_key_value/[~6]@robotkernel/unstable")
 
