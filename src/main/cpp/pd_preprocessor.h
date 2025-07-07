@@ -20,22 +20,17 @@
  * along with robotkernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __MODULE_PD_PREPROCESSOR_H__
-#define __MODULE_PD_PREPROCESSOR_H__
+#ifndef MODULE_PD_PREPROCESSOR__PD_PREPROCESSOR_H
+#define MODULE_PD_PREPROCESSOR__PD_PREPROCESSOR_H
 
-#include "robotkernel/module_intf.h"
 #include "robotkernel/module_base.h"
-#include "robotkernel/runnable.h"
-#include "robotkernel/kernel.h"
 #include "robotkernel/trigger_base.h"
+#include "robotkernel/process_data.h"
 
 #include "service_provider/key_value/base.h"
 #include "service_provider/key_value/key_value_helper.h"
 
 namespace module_pd_preprocessor {
-#ifdef EMACS
-}
-#endif
 
 // forward declarations
 class preproc_device;
@@ -103,14 +98,13 @@ class preproc_device :
         void close();
 
         // trigger function
-        void tick();
+        virtual void tick() override;
 };
 
 
 // forward declaration
 class pd_preprocessor : 
     public std::enable_shared_from_this<pd_preprocessor>,
-    public robotkernel::runnable, 
     public robotkernel::module_base
 {
     private:
@@ -138,23 +132,16 @@ class pd_preprocessor :
         ~pd_preprocessor();
 
         //! additional module init stuff
-        void init();
+        virtual void init() override;
 
-        //! set module state machine to defined state
-        /*!
-          \param state requested state
-          \return success or failure
-          */
-        int set_state(module_state_t state);
+        //! State transition from PREOP to INIT
+        virtual void set_state_preop_2_init() override; 
 
-        //! handler function called if thread is running
-        void run();
+        //! State transition from INIT to PREOP
+        virtual void set_state_init_2_preop() override;
 };
 
-#ifdef EMACS
-{
-#endif
-};
+}; // namespace module_pd_preprocessor
 
-#endif // __MODULE_PD_PREPROCESSOR_H__
+#endif // MODULE_PD_PREPROCESSOR__PD_PREPROCESSOR_H
 

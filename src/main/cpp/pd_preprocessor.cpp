@@ -92,15 +92,10 @@ preproc_device::~preproc_device() {
 }
 
 void preproc_device::open() {
-    kernel& k = *kernel::get_instance();
-
     parent->log(info, "%s: trying to get %s\n", name.c_str(), pd_name.c_str());
 
-    import_pd.pd = k.get_process_data(pd_name);
-    if (import_pd.pd->clk_device != "") {
-        parent->log(info, "%s: trying to get %s\n", name.c_str(), import_pd.pd->clk_device.c_str());
-        import_pd.trigger = k.get_trigger(import_pd.pd->clk_device);
-    }
+    import_pd.pd = robotkernel::get_device<process_data>(pd_name);
+    import_pd.trigger = import_pd.pd->trigger_dev;
 
     // create new process data description
     YAML::Node pd_desc = YAML::Load(import_pd.pd->process_data_definition);
@@ -195,7 +190,7 @@ void preproc_device::open() {
         export_pd.pd->set_provider(export_pd.provider);
         import_pd.pd->trigger_dev->add_trigger(shared_from_this());
 
-        k.add_device(export_pd.pd);
+        robotkernel::add_device(export_pd.pd);
     } else {
         export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".outputs", emitter.c_str());
         import_pd.provider = make_shared<pd_provider>(parent->name + "." + name + ".outputs");
@@ -204,7 +199,7 @@ void preproc_device::open() {
         export_pd.pd->set_consumer(export_pd.consumer);
         export_pd.pd->trigger_dev->add_trigger(shared_from_this());
 
-        k.add_device(export_pd.pd);
+        robotkernel::add_device(export_pd.pd);
     }
         /*
         std::string field_name;
@@ -220,10 +215,8 @@ void preproc_device::open() {
 }
 
 void preproc_device::close() {
-    kernel& k = *kernel::get_instance();
-    
-    k.remove_device(export_pd.pd);
-    k.remove_device(export_pd.trigger);
+    robotkernel::remove_device(export_pd.pd);
+    robotkernel::remove_device(export_pd.trigger);
 
     if (type == "inputs") {
         import_pd.pd->trigger_dev->remove_trigger(shared_from_this());
@@ -442,7 +435,7 @@ void preproc_device::tick() {
  * \param node yaml configuration node
  */
 pd_preprocessor::pd_preprocessor(const char* name, const YAML::Node& node) : 
-    runnable(node), module_base("module_pd_preprocessor", name, node)
+    module_base("module_pd_preprocessor", name, node)
 {
     this->node = YAML::Clone(node);
 }
@@ -463,116 +456,46 @@ void pd_preprocessor::init() {
     robotkernel::parse_templates(node, instances_list);
 }
 
-//! handler function called if thread is running
-void pd_preprocessor::run() {
+//! State transition from PREOP to INIT
+void pd_preprocessor::set_state_preop_2_init() {
+    robotkernel::remove_device(kvs);
+    kvs = nullptr;
+
+    // ====> deinit devices
+    for (const auto& sdev : devices) {
+        sdev->close();
+    }
 }
 
-//! set module state machine to defined state
-/*!
-  \param state requested state
-  \return success or failure
-  */
-int pd_preprocessor::set_state(module_state_t state) {
-    kernel& k = *kernel::get_instance();
+//! State transition from INIT to PREOP
+void pd_preprocessor::set_state_init_2_preop() {
+    kvs = make_shared<key_value_slave>(name, "parameters");
+    robotkernel::add_device(kvs);
 
-    // get transition
-    uint32_t transition = GEN_STATE(this->state, state);
+    for (const auto& sdev : devices) {
+        sdev->open();
 
-    switch (transition) {
-        case op_2_safeop:
-        case op_2_preop:
-        case op_2_init:
-        case op_2_boot:
-            // ====> stop sending commands
-            if (state == module_state_safeop)
-                break;
-        case safeop_2_preop:
-        case safeop_2_init:
-        case safeop_2_boot:
-            // ====> stop receiving measurements
-            stop();
+        for (auto& kv : sdev->entries) {
+            auto& e    = kv.second;
 
-            if (state == module_state_preop)
-                break;
-        case preop_2_init:
-        case preop_2_boot:
-            k.remove_device(kvs);
-            kvs = nullptr;
-
-            // ====> deinit devices
-            for (const auto& sdev : devices) {
-                sdev->close();
+            {
+                auto *kvk = new key_value_key<double>(kvs.get(),
+                        format_string("%s.%s.scaling", sdev->name.c_str(), e.field_name.c_str()), &e.scaling, false);
+                kvs->_add_key(kvk); 
             }
 
-        case init_2_init:
-            // ====> re-/open ethercat device
-            if (state == module_state_init)
-                break;
-        case init_2_boot:
-            break;
-        case boot_2_init:
-        case boot_2_preop:
-        case boot_2_safeop:
-        case boot_2_op:
-            // ====> re-/open ethercat device
-            if (state == module_state_init)
-                break;
-        case init_2_op:
-        case init_2_safeop:
-        case init_2_preop: {
-            // ====> initial devices            
-            kvs = make_shared<key_value_slave>(name, "parameters");
-            k.add_device(kvs);
-
-            for (const auto& sdev : devices) {
-                sdev->open();
-    
-                for (auto& kv : sdev->entries) {
-                    auto& e    = kv.second;
-
-                    {
-                        auto *kvk = new key_value_key<double>(kvs.get(),
-                                format_string("%s.%s.scaling", sdev->name.c_str(), e.field_name.c_str()), &e.scaling, false);
-                        kvs->_add_key(kvk); 
-                    }
-
-                    {
-                        auto *kvk = new key_value_key<double>(kvs.get(),
-                                format_string("%s.%s.offset", sdev->name.c_str(), e.field_name.c_str()), &e.offset, false);
-                        kvs->_add_key(kvk); 
-                    }
-
-                    {
-                        auto *kvk = new key_value_key<int64_t>(kvs.get(),
-                                format_string("%s.%s.raw_offset", sdev->name.c_str(), e.field_name.c_str()), &e.raw_offset, false);
-                        kvs->_add_key(kvk); 
-                    }
-                }
+            {
+                auto *kvk = new key_value_key<double>(kvs.get(),
+                        format_string("%s.%s.offset", sdev->name.c_str(), e.field_name.c_str()), &e.offset, false);
+                kvs->_add_key(kvk); 
             }
 
-            if (state == module_state_preop)
-                break;
+            {
+                auto *kvk = new key_value_key<int64_t>(kvs.get(),
+                        format_string("%s.%s.raw_offset", sdev->name.c_str(), e.field_name.c_str()), &e.raw_offset, false);
+                kvs->_add_key(kvk); 
+            }
         }
-        case preop_2_op:
-        case preop_2_safeop:
-            // ====> start receiving measurements
-            start();
-
-            if (state == module_state_safeop)
-                break;
-        case safeop_2_op:
-            // ====> start sending commands           
-            break;
-        case op_2_op:
-        case safeop_2_safeop:
-        case preop_2_preop:
-            // ====> do nothing
-            break;
-
-        default:
-            break;
     }
-
-    return (this->state = state);
 }
 
