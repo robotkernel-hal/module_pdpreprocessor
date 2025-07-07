@@ -58,6 +58,6 @@ case $target in
         ;;
 esac
 
-AC_CONFIG_FILES([Makefile src/main/cpp/Makefile module_pd_preprocessor.pc])
+AC_CONFIG_FILES([Makefile src/Makefile module_pd_preprocessor.pc])
 
 AC_OUTPUT
