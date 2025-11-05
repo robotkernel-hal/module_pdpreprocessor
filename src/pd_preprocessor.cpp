@@ -33,14 +33,12 @@
 #include <chrono>
 
 #include "yaml-cpp/yaml.h"
-#include <string_util/string_util.h>
 
 MODULE_DEF(module_pd_preprocessor, module_pd_preprocessor::pd_preprocessor);
 
 using namespace std;
 using namespace robotkernel;
 using namespace module_pd_preprocessor;
-using namespace string_util;
         
 preproc_entry::preproc_entry(const YAML::Node& node) {
     field_name = get_as<string> (node, "field_name");
@@ -469,7 +467,7 @@ void pd_preprocessor::set_state_preop_2_init() {
 
 //! State transition from INIT to PREOP
 void pd_preprocessor::set_state_init_2_preop() {
-    kvs = make_shared<key_value_slave>(name, "parameters");
+    kvs = make_shared<service_provider_key_value::slave>(name, "parameters");
     robotkernel::add_device(kvs);
 
     for (const auto& sdev : devices) {
@@ -479,20 +477,20 @@ void pd_preprocessor::set_state_init_2_preop() {
             auto& e    = kv.second;
 
             {
-                auto *kvk = new key_value_key<double>(kvs.get(),
-                        format_string("%s.%s.scaling", sdev->name.c_str(), e.field_name.c_str()), &e.scaling, false);
+                auto *kvk = new service_provider_key_value::key<double>(kvs.get(),
+                        string_printf("%s.%s.scaling", sdev->name.c_str(), e.field_name.c_str()), &e.scaling, false);
                 kvs->_add_key(kvk); 
             }
 
             {
-                auto *kvk = new key_value_key<double>(kvs.get(),
-                        format_string("%s.%s.offset", sdev->name.c_str(), e.field_name.c_str()), &e.offset, false);
+                auto *kvk = new service_provider_key_value::key<double>(kvs.get(),
+                        string_printf("%s.%s.offset", sdev->name.c_str(), e.field_name.c_str()), &e.offset, false);
                 kvs->_add_key(kvk); 
             }
 
             {
-                auto *kvk = new key_value_key<int64_t>(kvs.get(),
-                        format_string("%s.%s.raw_offset", sdev->name.c_str(), e.field_name.c_str()), &e.raw_offset, false);
+                auto *kvk = new service_provider_key_value::key<int64_t>(kvs.get(),
+                        string_printf("%s.%s.raw_offset", sdev->name.c_str(), e.field_name.c_str()), &e.raw_offset, false);
                 kvs->_add_key(kvk); 
             }
         }

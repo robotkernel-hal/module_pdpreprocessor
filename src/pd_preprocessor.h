@@ -27,8 +27,8 @@
 #include "robotkernel/trigger_base.h"
 #include "robotkernel/process_data.h"
 
-#include "service_provider/key_value/base.h"
-#include "service_provider/key_value/key_value_helper.h"
+#include "service_provider_key_value/base.h"
+#include "service_provider_key_value/key_value_helper.h"
 
 namespace module_pd_preprocessor {
 
@@ -114,7 +114,7 @@ class pd_preprocessor :
 
     public:
 
-        std::shared_ptr<key_value_slave> kvs;
+        std::shared_ptr<service_provider_key_value::slave> kvs;
 
         robotkernel::sp_process_data_t pdin;         //!< named process data
         robotkernel::sp_pd_provider_t pdin_provider;
