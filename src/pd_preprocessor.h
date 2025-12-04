@@ -74,7 +74,7 @@ class preproc_entry
 };
 
 class preproc_device :
-    public std::enable_shared_from_this<preproc_device>,
+    public virtual robotkernel::shared_base,
     public robotkernel::trigger_base
 {
     public: 
@@ -104,7 +104,7 @@ class preproc_device :
 
 // forward declaration
 class pd_preprocessor : 
-    public std::enable_shared_from_this<pd_preprocessor>,
+    public virtual robotkernel::shared_base,
     public robotkernel::module_base
 {
     private:

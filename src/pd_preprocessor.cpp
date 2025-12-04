@@ -186,7 +186,7 @@ void preproc_device::open() {
         
         export_pd.provider = make_shared<pd_provider>(parent->name + "." + name + ".outputs");
         export_pd.pd->set_provider(export_pd.provider);
-        import_pd.pd->trigger_dev->add_trigger(shared_from_this());
+        import_pd.pd->trigger_dev->add_trigger(shared_from_this_as<trigger_base>());
 
         robotkernel::add_device(export_pd.pd);
     } else {
@@ -195,7 +195,7 @@ void preproc_device::open() {
         import_pd.pd->set_provider(import_pd.provider);
         export_pd.consumer = make_shared<pd_consumer>(parent->name + "." + name + ".inputs");
         export_pd.pd->set_consumer(export_pd.consumer);
-        export_pd.pd->trigger_dev->add_trigger(shared_from_this());
+        export_pd.pd->trigger_dev->add_trigger(shared_from_this_as<trigger_base>());
 
         robotkernel::add_device(export_pd.pd);
     }
@@ -217,7 +217,7 @@ void preproc_device::close() {
     robotkernel::remove_device(export_pd.trigger);
 
     if (type == "inputs") {
-        import_pd.pd->trigger_dev->remove_trigger(shared_from_this());
+        import_pd.pd->trigger_dev->remove_trigger(shared_from_this_as<trigger_base>());
 
         export_pd.pd->reset_provider(export_pd.provider);
         export_pd.provider = nullptr;
@@ -225,7 +225,7 @@ void preproc_device::close() {
         import_pd.pd->reset_consumer(import_pd.consumer);
         import_pd.consumer = nullptr;
     } else {
-        export_pd.pd->trigger_dev->remove_trigger(shared_from_this());
+        export_pd.pd->trigger_dev->remove_trigger(shared_from_this_as<trigger_base>());
 
         export_pd.pd->reset_consumer(export_pd.consumer);
         export_pd.consumer = nullptr;
@@ -446,7 +446,7 @@ pd_preprocessor::~pd_preprocessor() {
 void pd_preprocessor::init() {
     for (const auto& kv : node["devices"]) {
         auto sdev = make_shared<preproc_device>(kv.first.as<string>(),
-                shared_from_this(), kv.second);
+                shared_from_this_as<pd_preprocessor>(), kv.second);
         devices.push_back(sdev);
     }
 
