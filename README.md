@@ -1,4 +1,4 @@
-The module **libmodule_pd_preprocessor.so** is used to scale, cast and convert process data device members.
+The module **libmodule_pdpreprocessor.so** is used to scale, cast and convert process data device members.
 
 # Functional principle 
 
@@ -21,7 +21,7 @@ Target values can be converted to an other data type prior to be scaled.
 This example config file can be used as a template for own configurations.
 
 ```yaml
-# Configuration file for module_pd_preprocessor.
+# Configuration file for module_pdpreprocessor.
 #
 # vim: ft=yaml
 

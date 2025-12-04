@@ -1,7 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4
 SUBDIRS=src
 
-pkgconfig_DATA = module_pd_preprocessor.pc
+pkgconfig_DATA = module_pdpreprocessor.pc
 
 install-exec-hook:
 	mkdir -p $(DESTDIR)$(prefix)/doc

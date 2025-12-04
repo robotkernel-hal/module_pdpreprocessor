@@ -20,7 +20,7 @@
  * along with robotkernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pd_preprocessor.h"
+#include "pdpreprocessor.h"
 #include "robotkernel/helpers.h"
 #include <stdlib.h>
 #include <string.h>
@@ -34,11 +34,11 @@
 
 #include "yaml-cpp/yaml.h"
 
-MODULE_DEF(module_pd_preprocessor, module_pd_preprocessor::pd_preprocessor);
+MODULE_DEF(module_pdpreprocessor, module_pdpreprocessor::pdpreprocessor);
 
 using namespace std;
 using namespace robotkernel;
-using namespace module_pd_preprocessor;
+using namespace module_pdpreprocessor;
         
 preproc_entry::preproc_entry(const YAML::Node& node) {
     field_name = get_as<string> (node, "field_name");
@@ -73,7 +73,7 @@ preproc_entry::preproc_entry(const YAML::Node& node) {
 
 // construction
 preproc_device::preproc_device(const std::string& name, 
-        std::shared_ptr<pd_preprocessor> parent, const YAML::Node& node) :
+        std::shared_ptr<pdpreprocessor> parent, const YAML::Node& node) :
     parent(parent), name(name)
 {
     type = get_as<string>(node, "type");
@@ -432,21 +432,21 @@ void preproc_device::tick() {
 /*!
  * \param node yaml configuration node
  */
-pd_preprocessor::pd_preprocessor(const char* name, const YAML::Node& node) : 
-    module_base("module_pd_preprocessor", name, node)
+pdpreprocessor::pdpreprocessor(const char* name, const YAML::Node& node) : 
+    module_base("module_pdpreprocessor", name, node)
 {
     this->node = YAML::Clone(node);
 }
 
 //! destrcution
-pd_preprocessor::~pd_preprocessor() {
+pdpreprocessor::~pdpreprocessor() {
 }
         
 // additional module init stuff
-void pd_preprocessor::init() {
+void pdpreprocessor::init() {
     for (const auto& kv : node["devices"]) {
         auto sdev = make_shared<preproc_device>(kv.first.as<string>(),
-                shared_from_this_as<pd_preprocessor>(), kv.second);
+                shared_from_this_as<pdpreprocessor>(), kv.second);
         devices.push_back(sdev);
     }
 
@@ -455,7 +455,7 @@ void pd_preprocessor::init() {
 }
 
 //! State transition from PREOP to INIT
-void pd_preprocessor::set_state_preop_2_init() {
+void pdpreprocessor::set_state_preop_2_init() {
     robotkernel::remove_device(kvs);
     kvs = nullptr;
 
@@ -466,7 +466,7 @@ void pd_preprocessor::set_state_preop_2_init() {
 }
 
 //! State transition from INIT to PREOP
-void pd_preprocessor::set_state_init_2_preop() {
+void pdpreprocessor::set_state_init_2_preop() {
     kvs = make_shared<service_provider_key_value::slave>(name, "parameters");
     robotkernel::add_device(kvs);
 

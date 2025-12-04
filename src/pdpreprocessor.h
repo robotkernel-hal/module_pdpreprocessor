@@ -30,11 +30,11 @@
 #include "service_provider_key_value/base.h"
 #include "service_provider_key_value/key_value_helper.h"
 
-namespace module_pd_preprocessor {
+namespace module_pdpreprocessor {
 
 // forward declarations
 class preproc_device;
-class pd_preprocessor;
+class pdpreprocessor;
 
 typedef struct {
     robotkernel::sp_trigger_t trigger;
@@ -78,7 +78,7 @@ class preproc_device :
     public robotkernel::trigger_base
 {
     public: 
-        std::shared_ptr<pd_preprocessor> parent;
+        std::shared_ptr<pdpreprocessor> parent;
         std::string name;
 
         std::string type;
@@ -89,7 +89,7 @@ class preproc_device :
     public:
         // construction
         preproc_device(const std::string& name, 
-                std::shared_ptr<pd_preprocessor> parent, const YAML::Node& node);
+                std::shared_ptr<pdpreprocessor> parent, const YAML::Node& node);
         // destruction
         ~preproc_device();
 
@@ -103,14 +103,14 @@ class preproc_device :
 
 
 // forward declaration
-class pd_preprocessor : 
+class pdpreprocessor : 
     public virtual robotkernel::shared_base,
     public robotkernel::module_base
 {
     private:
-        pd_preprocessor();                               //!< prevent default cons
-        pd_preprocessor(const pd_preprocessor&);             //!< prevent copy-construction
-        pd_preprocessor& operator=(const pd_preprocessor&);  //!< prevent assignment
+        pdpreprocessor();                               //!< prevent default cons
+        pdpreprocessor(const pdpreprocessor&);             //!< prevent copy-construction
+        pdpreprocessor& operator=(const pdpreprocessor&);  //!< prevent assignment
 
     public:
 
@@ -126,10 +126,10 @@ class pd_preprocessor :
         /*!
          * \param node yaml configuration node
          */
-        pd_preprocessor(const char *name, const YAML::Node& node);
+        pdpreprocessor(const char *name, const YAML::Node& node);
 
         //! destrcution
-        ~pd_preprocessor();
+        ~pdpreprocessor();
 
         //! additional module init stuff
         virtual void init() override;
@@ -141,7 +141,7 @@ class pd_preprocessor :
         virtual void set_state_init_2_preop() override;
 };
 
-}; // namespace module_pd_preprocessor
+}; // namespace module_pdpreprocessor
 
 #endif // MODULE_PD_PREPROCESSOR__PD_PREPROCESSOR_H
 

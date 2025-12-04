@@ -4,8 +4,8 @@ class MainProject(ConanFile):
     python_requires = "conan_template/[~5]@robotkernel/stable"
     python_requires_extend = "conan_template.RobotkernelConanFile"
 
-    name = "module_pd_preprocessor"
-    description = "module_pd_preprocessor is used to generate deterministic triggers for other modules."
+    name = "module_pdpreprocessor"
+    description = "module_pdpreprocessor is used to generate deterministic triggers for other modules."
     exports_sources = ["*", "!.gitignore"]
 
     def requirements(self):
