@@ -1,0 +1,54 @@
+module-pdpreprocessor (6.0.0) unstable; urgency=low
+
+
+ -- Daniel Seidel <daniel.seidel@dlr.de>  Tue, 24 Sep 2024 10:31:09 +0200
+
+module-pdpreprocessor (5.0.3) unstable; urgency=low
+
+  * feat: conan2 compatibility
+
+ -- Daniel Seidel <daniel.seidel@dlr.de>  Tue, 24 Sep 2024 10:31:09 +0200
+
+module-pdpreprocessor (5.0.2) unstable; urgency=low
+
+  * chore(rmc build): use build profile
+
+ -- Daniel Seidel <daniel.seidel@dlr.de>  Tue, 21 Nov 2023 13:04:07 +0100
+
+module-pdpreprocessor (5.0.1) unstable; urgency=low
+
+  * Merge pull request #4 from robotkernel/release/5.0.1
+  * removed canonical target
+  * fixed duplicate key_value_eval/_repr with T=double
+  * feat: use stable channels for dependencies
+
+ -- Seidel, Daniel <Daniel.Seidel@dlr.de>  Fri, 15 Sep 2023 15:47:23 +0200
+
+module-pdpreprocessor (5.0.0) unstable; urgency=low
+
+  * FIX: add missing seqm.yaml
+  * MERGE: branch 'release/5.0.0' of rmc-github.robotic.dlr.de:robotkernel/module_pd_preprocessor into release/5.0.0
+  * Merge pull request #3 from robotkernel/backport_rk6
+  * feat: added check if fields exists in PD and warning
+  * feat: backport offset feature from rk6
+  * build: backport rk6 build files
+  * doc: added correct README
+  * fixed cleanup
+  * MERGE: branch 'release/5.0.0' of rmc-github.robotic.dlr.de:robotkernel/module_pd_preprocessor into release/5.0.0
+  * FIX: shuting down module
+  * CHANGE: Readme.md
+  * UPDATE: readme doc fiel
+  * FIX: working version 1
+  * added alias names
+  * FIX: removed unused k
+  * ADD: output mode
+  * ADD: inputs processing in tick callback
+  * CHANGE: first try with pd creation
+  * CHANGE: robotkernel at least 5.0.19
+  * ADD: rmc-build.yaml
+  * CHANGE: rewritten for pd_preprocessor
+  * initial import
+  * Initial commit
+
+ -- Daniel Seidel <daniel.seidel@dlr.de>  Thu, 11 Aug 2022 13:32:00 +0200
+
