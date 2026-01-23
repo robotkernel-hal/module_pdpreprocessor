@@ -38,6 +38,7 @@ MODULE_DEF(module_pdpreprocessor, module_pdpreprocessor::pdpreprocessor);
 
 using namespace std;
 using namespace robotkernel;
+using namespace robotkernel::helpers;
 using namespace module_pdpreprocessor;
         
 preproc_entry::preproc_entry(const YAML::Node& node) {
@@ -451,7 +452,7 @@ void pdpreprocessor::init() {
     }
 
     std::list<YAML::Node> instances_list;
-    robotkernel::parse_templates(node, instances_list);
+    parse_templates(node, instances_list);
 }
 
 //! State transition from PREOP to INIT
