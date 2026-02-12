@@ -265,6 +265,9 @@ static inline void convert_to_switch(pd_data_types import_dt, double scaling, co
         case PD_DT_UINT32:
             convert_to<uint32_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
+        case PD_DT_UINT64:
+            convert_to<uint64_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
         case PD_DT_INT8:
             convert_to<int8_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
@@ -273,6 +276,9 @@ static inline void convert_to_switch(pd_data_types import_dt, double scaling, co
             break;
         case PD_DT_INT32:
             convert_to<int32_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_INT64:
+            convert_to<int64_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         default: break;
     }
@@ -304,6 +310,9 @@ static inline void convert_to_switch_out(pd_data_types import_dt, double scaling
         case PD_DT_UINT32:
             convert_to_out<uint32_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
+        case PD_DT_UINT64:
+            convert_to_out<uint64_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
         case PD_DT_INT8:
             convert_to_out<int8_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
@@ -312,6 +321,9 @@ static inline void convert_to_switch_out(pd_data_types import_dt, double scaling
             break;
         case PD_DT_INT32:
             convert_to_out<int32_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
+            break;
+        case PD_DT_INT64:
+            convert_to_out<int64_t, convert_dt>(scaling, offset, raw_offset, in_buf, out_buf);
             break;
         default: break;
     }
@@ -360,6 +372,9 @@ void preproc_device::tick() {
                     case PD_DT_UINT32:
                         convert_to_switch<uint32_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
                         break;
+                    case PD_DT_UINT64:
+                        convert_to_switch<uint64_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
                     case PD_DT_INT8:
                         convert_to_switch<int8_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
                         break;
@@ -368,6 +383,9 @@ void preproc_device::tick() {
                         break;
                     case PD_DT_INT32:
                         convert_to_switch<int32_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
+                        break;
+                    case PD_DT_INT64:
+                        convert_to_switch<int64_t>(import_dt, e.scaling, e.offset, e.raw_offset, import_val, export_val);
                         break;
                 }
             }
@@ -411,6 +429,9 @@ void preproc_device::tick() {
                         case PD_DT_UINT32:
                             convert_to_switch_out<uint32_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
+                        case PD_DT_UINT64:
+                            convert_to_switch_out<uint64_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
+                            break;
                         case PD_DT_INT8:
                             convert_to_switch_out<int8_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
@@ -419,6 +440,9 @@ void preproc_device::tick() {
                             break;
                         case PD_DT_INT32:
                             convert_to_switch_out<int32_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
+                            break;
+                        case PD_DT_INT64:
+                            convert_to_switch_out<int64_t>(e.convert_to_dt, e.scaling, e.offset, e.raw_offset, export_val, import_val);
                             break;
                     }
                 }

@@ -9,9 +9,9 @@ class MainProject(ConanFile):
     exports_sources = ["*", "!.gitignore"]
 
     def requirements(self):
-        self.requires("robotkernel/[~6]@robotkernel/unstable")
-        self.requires("service_provider_process_data_inspection/[~6]@robotkernel/unstable")
-        self.requires("service_provider_key_value/[~6]@robotkernel/unstable")
+        self.requires("robotkernel/6.0.0-yaml-service@robotkernel/unstable")
+        self.requires("service_provider_process_data_inspection/6.0.0-yaml-service@robotkernel/unstable")
+        self.requires("service_provider_key_value/6.0.0-yaml-service@robotkernel/unstable")
 
     def source(self):
         self.run(f"sed 's/AC_INIT(.*/AC_INIT([{self.name}], [{self.version}], [{self.author}])/' configure.ac.in > configure.ac")
