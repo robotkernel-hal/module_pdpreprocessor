@@ -215,7 +215,6 @@ void preproc_device::open() {
 
 void preproc_device::close() {
     robotkernel::remove_device(export_pd.pd);
-    robotkernel::remove_device(export_pd.trigger);
 
     if (type == "inputs") {
         import_pd.pd->trigger_dev->remove_trigger(shared_from_this_as<trigger_base>());
@@ -236,7 +235,6 @@ void preproc_device::close() {
     }
 
     export_pd.pd = nullptr;
-    export_pd.trigger = nullptr;
 }
 
 template <typename in_dt, typename out_dt> 
@@ -504,18 +502,24 @@ void pdpreprocessor::set_state_init_2_preop() {
             {
                 auto *kvk = new service_provider_key_value::key<double>(kvs.get(),
                         string_printf("%s.%s.scaling", sdev->name.c_str(), e.field_name.c_str()), &e.scaling, false);
+                kvk->describe("Value scaling factor");
+                kvk->default_value("1.0");
                 kvs->_add_key(kvk); 
             }
 
             {
                 auto *kvk = new service_provider_key_value::key<double>(kvs.get(),
                         string_printf("%s.%s.offset", sdev->name.c_str(), e.field_name.c_str()), &e.offset, false);
+                kvk->describe("Offset to be subtracted from scaled value.");
+                kvk->default_value("0.0");
                 kvs->_add_key(kvk); 
             }
 
             {
                 auto *kvk = new service_provider_key_value::key<int64_t>(kvs.get(),
                         string_printf("%s.%s.raw_offset", sdev->name.c_str(), e.field_name.c_str()), &e.raw_offset, false);
+                kvk->describe("Offset to be subtracted from raw value.");
+                kvk->default_value("0.0");
                 kvs->_add_key(kvk); 
             }
         }
