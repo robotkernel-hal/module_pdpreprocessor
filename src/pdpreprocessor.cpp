@@ -97,10 +97,11 @@ void preproc_device::open() {
     import_pd.trigger = import_pd.pd->trigger_dev;
 
     // create new process data description
-    YAML::Node pd_desc = YAML::Load(import_pd.pd->process_data_definition);
+    auto def = robotkernel::get_pd_definition(import_pd.pd->process_data_definition);
+    YAML::Node pd_desc = YAML::Load(def);
 
     YAML::Emitter emitter;
-    emitter << YAML::BeginSeq;
+    emitter << YAML::BeginMap;
     
     export_pd.length = 0;
 
@@ -108,80 +109,71 @@ void preproc_device::open() {
 
     // check if all fields exists in PD
     for (auto const& e : entries) {
-        bool exists = false;
-        for (const auto& pd_desc_entry : pd_desc) {
-            for (const auto& kv : pd_desc_entry) {
-                string value = kv.second.as<string>();
-                if (value.find(e.first) != std::string::npos) {
-                    exists = true;
-                }
-            }
-        }
-        if (!exists)
-            parent->log(warning, "field '%s' not found in PD\n", e.first.c_str());
+        pd_entry_t pde;
+        pde.field_name = e.first;
+        import_pd.pd->find_pd_offset_and_type(pde);
     }
 
-    for (const auto& pd_desc_entry : pd_desc) {
-        emitter << YAML::BeginMap;
-        
-        for (const auto& kv : pd_desc_entry) {
-            string key = kv.first.as<string>();
-            string value = kv.second.as<string>();
-            bool hide = false;
-                
-            // calculate import offset
-            pd_data_types import_dt = process_data::get_data_type(key);
-            ssize_t dt_len = process_data::get_data_type_length(key);
+    for (const auto& kv : pd_desc) {
+        string key = get_as<string>(kv.second, "type");
+        string value = kv.first.as<string>();
+        bool hide = false;
+
+        // calculate import offset
+        pd_data_types import_dt = process_data::get_data_type(key);
+        ssize_t dt_len = process_data::get_data_type_length(key);
+        if (dt_len == -1) {
+            parent->log(error, "unknown data_type %s\n", key.c_str());
+        }
+
+        if (entries.find(value) != entries.end()) {
+            auto& e = entries[value];
+            hide = e.hide;
+
+            if (e.convert_to != "") {
+                key = e.convert_to;
+            } else if (e.cast_to != "") {
+                key = e.cast_to;
+            }
+        } else {
+            entries[value].field_name = value;
+        }
+
+        entries[value].import_len = dt_len;
+        entries[value].import_offset = import_offset;
+        entries[value].import_dt = import_dt;
+        import_offset += dt_len;
+
+        string e_name = value;
+        if (entries[value].alias != "") {
+            e_name = entries[value].alias;
+        }
+
+        if (!hide) {
+            parent->log(info, "%s: adding %s : %s\n", name.c_str(), key.c_str(), e_name.c_str());
+
+            emitter << YAML::Key << e_name << YAML::Value << 
+                YAML::BeginMap << YAML::Key << "type" << YAML::Value << key << YAML::EndMap;
+
+            dt_len = process_data::get_data_type_length(key);
             if (dt_len == -1) {
                 parent->log(error, "unknown data_type %s\n", key.c_str());
             }
 
-            if (entries.find(value) != entries.end()) {
-                auto& e = entries[value];
-                hide = e.hide;
-
-                if (e.convert_to != "") {
-                    key = e.convert_to;
-                } else if (e.cast_to != "") {
-                    key = e.cast_to;
-                }
-            } else {
-                entries[value].field_name = value;
-            }
-
             entries[value].import_len = dt_len;
-            entries[value].import_offset = import_offset;
-            entries[value].import_dt = import_dt;
-            import_offset += dt_len;
-
-            string e_name = value;
-            if (entries[value].alias != "") {
-                e_name = entries[value].alias;
-            }
-                
-            if (!hide) {
-                parent->log(info, "%s: adding %s : %s\n", name.c_str(), key.c_str(), e_name.c_str());
-                emitter << YAML::Key << key << YAML::Value << e_name;
-
-                dt_len = process_data::get_data_type_length(key);
-                if (dt_len == -1) {
-                    parent->log(error, "unknown data_type %s\n", key.c_str());
-                }
-
-                entries[value].import_len = dt_len;
-                entries[value].export_offset = export_offset;
-                export_offset += dt_len;
-                export_pd.length += dt_len;
-            }
+            entries[value].export_offset = export_offset;
+            export_offset += dt_len;
+            export_pd.length += dt_len;
         }
-
-        emitter << YAML::EndMap;
     }
 
-    emitter << YAML::EndSeq;
+    emitter << YAML::EndMap;
 
     if (type == "inputs") {
-        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".inputs", emitter.c_str());
+        parent->log(info, "adding inputs definition\n%s\n", emitter.c_str());
+        string def_name = string_printf("module_pdpreprocessor/%s/inputs", name.c_str());
+        robotkernel::add_datatype_definition(def_name, emitter.c_str());
+        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".inputs", def_name);
         import_pd.consumer = make_shared<pd_consumer>(parent->name + "." + name + ".inputs");
         import_pd.pd->set_consumer(import_pd.consumer);
         
@@ -191,7 +183,9 @@ void preproc_device::open() {
 
         robotkernel::add_device(export_pd.pd);
     } else {
-        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".outputs", emitter.c_str());
+        string def_name = string_printf("module_pdpreprocessor/%s/outputs", name.c_str());
+        robotkernel::add_datatype_definition(def_name, emitter.c_str());
+        export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".outputs", def_name); 
         import_pd.provider = make_shared<pd_provider>(parent->name + "." + name + ".outputs");
         import_pd.pd->set_provider(import_pd.provider);
         export_pd.consumer = make_shared<pd_consumer>(parent->name + "." + name + ".inputs");
