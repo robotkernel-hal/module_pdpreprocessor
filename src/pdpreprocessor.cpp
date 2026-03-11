@@ -172,7 +172,7 @@ void preproc_device::open() {
     if (type == "inputs") {
         parent->log(info, "adding inputs definition\n%s\n", emitter.c_str());
         string def_name = string_printf("module_pdpreprocessor/%s/inputs", name.c_str());
-        robotkernel::add_datatype_definition(def_name, emitter.c_str());
+        robotkernel::add_pd_definition(def_name, emitter.c_str());
         export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".inputs", def_name);
         import_pd.consumer = make_shared<pd_consumer>(parent->name + "." + name + ".inputs");
         import_pd.pd->set_consumer(import_pd.consumer);
@@ -184,7 +184,7 @@ void preproc_device::open() {
         robotkernel::add_device(export_pd.pd);
     } else {
         string def_name = string_printf("module_pdpreprocessor/%s/outputs", name.c_str());
-        robotkernel::add_datatype_definition(def_name, emitter.c_str());
+        robotkernel::add_pd_definition(def_name, emitter.c_str());
         export_pd.pd = make_shared<triple_buffer>(export_pd.length, parent->name, name + ".outputs", def_name); 
         import_pd.provider = make_shared<pd_provider>(parent->name + "." + name + ".outputs");
         import_pd.pd->set_provider(import_pd.provider);
