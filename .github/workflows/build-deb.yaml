@@ -60,7 +60,7 @@ jobs:
           
           curl -fsSL https://deb.burger-system.de/setup.sh | bash > /dev/null
           apt-get update
-          apt-get install -y robotkernel-service-helper robotkernel-dev service-provider-process-data-inspection-dev service-provider-key-value-dev
+          apt-get install -y robotkernel-generator robotkernel-dev service-provider-process-data-inspection-dev service-provider-key-value-dev
 
       - name: Checkout source
         uses: actions/checkout@v4
