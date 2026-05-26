@@ -1,4 +1,4 @@
-module-pdpreprocessor (6.0.0) unstable; urgency=low
+module-pdpreprocessor (6.0.0) stable; urgency=low
 
 
  -- Daniel Seidel <daniel.seidel@dlr.de>  Tue, 24 Sep 2024 10:31:09 +0200
